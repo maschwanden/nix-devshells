@@ -11,6 +11,11 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -18,6 +23,7 @@
       nixpkgs,
       sandbox,
       llm-agents,
+      fenix,
       ...
     }:
     let
@@ -27,36 +33,38 @@
         "x86_64-darwin"
         "aarch64-darwin"
       ];
-    in
-    let
-      claudePkgsFor =
+      nixpkgsFor =
         system:
-        let
-          pkgs = import nixpkgs {
-            system = system;
-            config.allowUnfree = true;
-          };
-        in
+        import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+          overlays = [ fenix.overlays.default ];
+        };
+      mkClaudeFor =
+        system:
         import ./pkgs/claude.nix {
-          inherit pkgs llm-agents;
+          pkgs = nixpkgsFor system;
+          inherit llm-agents;
           sandboxLib = sandbox.lib.${system};
         };
     in
     {
+      lib = forAllSystems (system: {
+        mkClaude = mkClaudeFor system;
+      });
+
       devShells = forAllSystems (
         system:
         let
-          pkgs = import nixpkgs {
-            system = system;
-            config.allowUnfree = true;
-          };
-          claudePkgs = claudePkgsFor system;
+          pkgs = nixpkgsFor system;
+          mkClaude = mkClaudeFor system;
+          claudePkgs = mkClaude { };
         in
         {
           claude = pkgs.mkShell {
             packages = [
-              claudePkgs.claude
-              claudePkgs.claude-yolo
+              claudePkgs.claude-sandboxed
+              claudePkgs.claude-yolo-sandboxed
               claudePkgs.bash-sandboxed
             ];
             shellHook = ''
@@ -73,6 +81,6 @@
         }
       );
 
-      packages = forAllSystems (system: claudePkgsFor system);
+      packages = forAllSystems (system: (mkClaudeFor system) { });
     };
 }

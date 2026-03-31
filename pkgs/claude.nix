@@ -1,11 +1,17 @@
-# Sandboxed Claude Code packages.
+# Sandboxed Claude Code helper.
 # Based on https://github.com/archie-judd/agent-sandbox.nix.
 #
-# Returns: { claude, claude-yolo, bash-sandboxed }
+# Usage: mkClaude = import ./pkgs/claude.nix { inherit pkgs sandboxLib llm-agents; };
+#        mkClaude { extraPackages = [ pkgs.go ]; }
+# Returns: { claude-sandboxed, claude-yolo-sandboxed, bash-sandboxed }
 {
   pkgs,
   sandboxLib,
   llm-agents,
+}:
+
+{
+  extraPackages ? [ ],
 }:
 
 let
@@ -32,7 +38,8 @@ let
     pkgs.gnugrep
     pkgs.findutils
     pkgs.jq
-  ];
+  ]
+  ++ extraPackages;
   claude-sandboxed = sandboxLib.mkSandbox {
     pkg = llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
     binName = "claude";
@@ -43,7 +50,7 @@ let
     stateFiles = state-files;
     extraEnv = extra-env;
   };
-  claude-yolo = pkgs.writeShellScriptBin "claude-yolo" ''
+  claude-yolo-sandboxed = pkgs.writeShellScriptBin ("claude-sandboxed-yolo") ''
     exec ${claude-sandboxed}/bin/claude-sandboxed --dangerously-skip-permissions "$@"
   '';
   # Useful for exploring the sandbox and debugging.
@@ -59,6 +66,5 @@ let
   };
 in
 {
-  claude = claude-sandboxed;
-  inherit claude-yolo bash-sandboxed;
+  inherit claude-sandboxed claude-yolo-sandboxed bash-sandboxed;
 }
