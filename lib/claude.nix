@@ -1,7 +1,7 @@
 # Sandboxed Claude Code helper.
 # Based on https://github.com/archie-judd/agent-sandbox.nix.
 #
-# Usage: mkClaude = import ./pkgs/claude.nix { inherit pkgs sandboxLib llm-agents; };
+# Usage: mkClaude = import ./lib/claude.nix { inherit pkgs sandboxLib llm-agents; };
 #        mkClaude { extraPackages = [ pkgs.go ]; }
 # Returns: { claude-sandboxed, claude-yolo-sandboxed, bash-sandboxed }
 {
