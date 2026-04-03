@@ -106,38 +106,9 @@
               builtins.getAttr attr (mkClaude { extraPackages = extraPkgs; })
           '';
 
-          # Nix expression that accepts pre-resolved package store paths
-          # via the PKG_STORE_PATHS env var (a JSON array of path strings).
-          # Used on cache hit by the *-with-shell wrappers to avoid
-          # re-evaluating (and re-copying) the project flake.
-          withStorePathsExpr = pkgs.writeText "with-store-paths-expr.nix" ''
-            attr:
-            let
-              pathStrings = builtins.fromJSON (builtins.getEnv "PKG_STORE_PATHS");
-              system = builtins.currentSystem;
-
-              pkgs = import ${nixpkgs} {
-                inherit system;
-                config = { allowUnfree = true; };
-              };
-              sandboxFlake = builtins.getFlake "path:${sandbox}";
-              llmAgentsFlake = builtins.getFlake "path:${llm-agents}";
-
-              extraPkgs = map builtins.storePath pathStrings;
-
-              mkClaude = (import ${./lib/claude.nix} {
-                inherit pkgs;
-                llm-agents = llmAgentsFlake;
-                sandboxLib = sandboxFlake.lib.''${system};
-              }).mkSandboxedClaude;
-            in
-              builtins.getAttr attr (mkClaude { extraPackages = extraPkgs; })
-          '';
-
           # Helper to generate a *-with-shell wrapper for a given variant.
-          # Caches discovered devShell package store paths by git rev so that
-          # subsequent runs on the same commit skip the project flake evaluation
-          # (and the expensive source-copy-to-store).
+          # Caches the build result path keyed by (project path, git rev,
+          # wrapper identity) so subsequent runs skip all Nix evaluation.
           mkWithShellWrapper =
             {
               name,
@@ -149,7 +120,6 @@
               runtimeInputs = [
                 pkgs.coreutils
                 pkgs.git
-                pkgs.jq
               ];
               text = ''
                 if [[ $# -lt 1 ]]; then
@@ -172,14 +142,11 @@
                 fi
 
                 # --- Caching layer ---
-                # For local git repos, cache the devShell package store paths
-                # keyed by (absolute path, git rev).
-                # On cache hit we skip the project flake evaluation entirely,
-                # avoiding the expensive source-copy-to-store.
-                CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/nix-devshells"
-                CACHE_HIT=false
-                CACHE_KEY=""
-                CACHE_FILE=""
+                # For local git repos, cache the build result store path
+                # keyed by (absolute path, git rev, wrapper identity).
+                # On cache hit we skip all Nix evaluation entirely.
+                CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claude-sandboxed"
+                RESULT=""
 
                 if [[ -d "$FLAKE_REF" ]]; then
                   ABS_DIR=$(realpath "$FLAKE_REF")
@@ -188,33 +155,22 @@
                     GIT_REV=$(git -C "$ABS_DIR" rev-parse HEAD 2>/dev/null || true)
 
                     if [[ -n "$GIT_REV" ]]; then
-                      CACHE_KEY=$(echo "$ABS_DIR-$GIT_REV" | sha256sum | cut -d' ' -f1)
-                      CACHE_FILE="$CACHE_DIR/$CACHE_KEY.json"
+                      # Include withShellExpr store path so cache invalidates
+                      # when the claude-sandboxed flake is updated.
+                      CACHE_KEY=$(echo "$ABS_DIR-$GIT_REV-${withShellExpr}" | sha256sum | cut -d' ' -f1)
+                      CACHE_FILE="$CACHE_DIR/$CACHE_KEY"
 
                       if [[ -f "$CACHE_FILE" ]]; then
-                        # Validate that every cached store path still exists
-                        ALL_EXIST=true
-                        while IFS= read -r p; do
-                          if [[ ! -e "$p" ]]; then
-                            ALL_EXIST=false
-                            break
-                          fi
-                        done < <(jq -r '.[]' "$CACHE_FILE")
-
-                        if [[ "$ALL_EXIST" == "true" ]]; then
-                          CACHE_HIT=true
+                        CACHED=$(cat "$CACHE_FILE")
+                        if [[ -e "$CACHED/bin/${binName}" ]]; then
+                          RESULT="$CACHED"
                         fi
                       fi
                     fi
                   fi
                 fi
 
-                if [[ "$CACHE_HIT" == "true" ]]; then
-                  export PKG_STORE_PATHS
-                  PKG_STORE_PATHS=$(cat "$CACHE_FILE")
-                  RESULT=$(nix build --no-link --print-out-paths --impure \
-                    --expr "import ${withStorePathsExpr} \"${attr}\"")
-                else
+                if [[ -z "$RESULT" ]]; then
                   # Resolve local directory paths to absolute flake references
                   if [[ -d "$FLAKE_REF" ]]; then
                     FLAKE_REF="path:$(realpath "$FLAKE_REF")"
@@ -224,16 +180,10 @@
                   RESULT=$(nix build --no-link --print-out-paths --impure \
                     --expr "import ${withShellExpr} (builtins.getEnv \"FLAKE_REF\") \"${attr}\"")
 
-                  # Cache the devShell package paths for next time
-                  if [[ -n "$CACHE_KEY" ]]; then
-                    SYSTEM=$(nix eval --impure --raw --expr builtins.currentSystem)
-                    DISCOVERED=$(nix eval "$FLAKE_REF#devShells.$SYSTEM.default" \
-                      --apply 'shell: map toString ((shell.buildInputs or []) ++ (shell.nativeBuildInputs or []))' \
-                      --json 2>/dev/null || true)
-                    if [[ -n "$DISCOVERED" && "$DISCOVERED" != "null" ]]; then
-                      mkdir -p "$CACHE_DIR"
-                      echo "$DISCOVERED" > "$CACHE_FILE"
-                    fi
+                  # Cache the result for next time
+                  if [[ -n "''${CACHE_FILE:-}" ]]; then
+                    mkdir -p "$CACHE_DIR"
+                    echo "$RESULT" > "$CACHE_FILE"
                   fi
                 fi
 
