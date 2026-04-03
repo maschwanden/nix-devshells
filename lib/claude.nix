@@ -39,7 +39,7 @@ let
     pkgs.findutils
     pkgs.jq
   ]
-  ++ extraPackages;
+  ++ pkgs.lib.flatten extraPackages;
   claude-sandboxed = sandboxLib.mkSandbox {
     pkg = llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
     binName = "claude";
