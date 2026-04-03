@@ -1,4 +1,4 @@
-# This flake provides various development shells for different purposes.
+# This flake
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -11,11 +11,6 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-
-    fenix = {
-      url = "github:nix-community/fenix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -23,7 +18,6 @@
       nixpkgs,
       sandbox,
       llm-agents,
-      fenix,
       ...
     }:
     let
@@ -38,9 +32,8 @@
         import nixpkgs {
           inherit system;
           config.allowUnfree = true;
-          overlays = [ fenix.overlays.default ];
         };
-      mkClaudeFor =
+      mkSandboxedClaudeFor =
         system:
         import ./lib/claude.nix {
           pkgs = nixpkgsFor system;
@@ -50,42 +43,14 @@
     in
     {
       lib = forAllSystems (system: {
-        mkClaude = mkClaudeFor system;
+        mkSandboxedClaude = (mkSandboxedClaudeFor system).mkSandboxedClaude;
       });
-
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgsFor system;
-          mkClaude = mkClaudeFor system;
-          claudePkgs = mkClaude { };
-        in
-        {
-          claude = pkgs.mkShell {
-            packages = [
-              claudePkgs.claude-sandboxed
-              claudePkgs.claude-yolo-sandboxed
-              claudePkgs.bash-sandboxed
-            ];
-            shellHook = ''
-              echo "Welcome to the sandboxed Claude development shell!"
-              echo "Normal usage: claude [args...]"
-              echo "Dangerous usage (no permissions checks, use with caution!): claude-yolo [args...]"
-
-              alias claude='claude-sandboxed';
-
-              export TERMINFO="${pkgs.ncurses}/share/terminfo";
-              echo "${pkgs.ncurses}/share/terminfo is available at $TERMINFO"
-            '';
-          };
-        }
-      );
 
       packages = forAllSystems (
         system:
         let
           pkgs = nixpkgsFor system;
-          claudePkgs = (mkClaudeFor system) { };
+          claudePkgs = (mkSandboxedClaudeFor system).mkSandboxedClaude { };
 
           # Nix expression with dependency store paths baked in at eval time.
           # Only the project flake ref and variant are resolved at runtime
@@ -106,11 +71,11 @@
               sandboxFlake = builtins.getFlake "path:${sandbox}";
               llmAgentsFlake = builtins.getFlake "path:${llm-agents}";
 
-              mkClaude = import ${./lib/claude.nix} {
+              mkClaude = (import ${./lib/claude.nix} {
                 inherit pkgs;
                 llm-agents = llmAgentsFlake;
                 sandboxLib = sandboxFlake.lib.''${system};
-              };
+              }).mkSandboxedClaude;
             in
               builtins.getAttr attr (mkClaude { extraPackages = extraPkgs; })
           '';
@@ -132,11 +97,11 @@
 
               extraPkgs = map (name: pkgs.''${name}) pkgNames;
 
-              mkClaude = import ${./lib/claude.nix} {
+              mkClaude = (import ${./lib/claude.nix} {
                 inherit pkgs;
                 llm-agents = llmAgentsFlake;
                 sandboxLib = sandboxFlake.lib.''${system};
-              };
+              }).mkSandboxedClaude;
             in
               builtins.getAttr attr (mkClaude { extraPackages = extraPkgs; })
           '';
@@ -160,11 +125,11 @@
 
               extraPkgs = map builtins.storePath pathStrings;
 
-              mkClaude = import ${./lib/claude.nix} {
+              mkClaude = (import ${./lib/claude.nix} {
                 inherit pkgs;
                 llm-agents = llmAgentsFlake;
                 sandboxLib = sandboxFlake.lib.''${system};
-              };
+              }).mkSandboxedClaude;
             in
               builtins.getAttr attr (mkClaude { extraPackages = extraPkgs; })
           '';
