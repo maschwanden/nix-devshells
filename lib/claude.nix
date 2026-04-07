@@ -3,7 +3,7 @@
 #
 # Usage: mkClaude = import ./lib/claude.nix { inherit pkgs sandboxLib llm-agents; };
 #        mkClaude { extraPackages = [ pkgs.go ]; }
-# Returns: { claude-sandboxed, claude-yolo-sandboxed, bash-sandboxed }
+# Returns: { claude, claude-yolo, bash }
 {
   pkgs,
   sandboxLib,
@@ -42,7 +42,7 @@
         pkgs.jq
       ]
       ++ pkgs.lib.flatten extraPackages;
-      claude-sandboxed = sandboxLib.mkSandbox {
+      claude = sandboxLib.mkSandbox {
         pkg = llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
         binName = "claude";
         outName = "claude-sandboxed";
@@ -52,11 +52,11 @@
         stateFiles = state-files;
         extraEnv = extra-env;
       };
-      claude-yolo-sandboxed = pkgs.writeShellScriptBin ("claude-sandboxed-yolo") ''
-        exec ${claude-sandboxed}/bin/claude-sandboxed --dangerously-skip-permissions "$@"
+      claude-yolo = pkgs.writeShellScriptBin ("claude-sandboxed-yolo") ''
+        exec ${claude}/bin/claude-sandboxed --dangerously-skip-permissions "$@"
       '';
       # Useful for exploring the sandbox and debugging.
-      bash-sandboxed = sandboxLib.mkSandbox {
+      bash = sandboxLib.mkSandbox {
         pkg = pkgs.bashNonInteractive;
         binName = "bash";
         outName = "bash-sandboxed";
@@ -68,7 +68,7 @@
       };
     in
     {
-      inherit claude-sandboxed claude-yolo-sandboxed bash-sandboxed;
+      inherit claude claude-yolo bash;
     }
   );
 }

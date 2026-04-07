@@ -21,8 +21,8 @@ let
 in
 pkgs.mkShell {
   packages = [
-    claudePkgs.claude-sandboxed
-    claudePkgs.claude-yolo-sandboxed
-    claudePkgs.bash-sandboxed
+    claudePkgs.claude
+    claudePkgs.claude-yolo
+    claudePkgs.bash
   ];
 }

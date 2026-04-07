@@ -249,32 +249,32 @@
         // {
           claude-with-shell = mkWithShellWrapper {
             name = "claude-with-shell";
-            attr = "claude-sandboxed";
+            attr = "claude";
             binName = "claude-sandboxed";
           };
           claude-yolo-with-shell = mkWithShellWrapper {
             name = "claude-yolo-with-shell";
-            attr = "claude-yolo-sandboxed";
+            attr = "claude-yolo";
             binName = "claude-sandboxed-yolo";
           };
           bash-with-shell = mkWithShellWrapper {
             name = "bash-with-shell";
-            attr = "bash-sandboxed";
+            attr = "bash";
             binName = "bash-sandboxed";
           };
           claude-with-pkgs = mkWithPkgsWrapper {
             name = "claude-with-pkgs";
-            attr = "claude-sandboxed";
+            attr = "claude";
             binName = "claude-sandboxed";
           };
           claude-yolo-with-pkgs = mkWithPkgsWrapper {
             name = "claude-yolo-with-pkgs";
-            attr = "claude-yolo-sandboxed";
+            attr = "claude-yolo";
             binName = "claude-sandboxed-yolo";
           };
           bash-with-pkgs = mkWithPkgsWrapper {
             name = "bash-with-pkgs";
-            attr = "bash-sandboxed";
+            attr = "bash";
             binName = "bash-sandboxed";
           };
         }

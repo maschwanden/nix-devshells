@@ -8,17 +8,17 @@ Environment variables `CLAUDE_CODE_OAUTH_TOKEN` and `GITHUB_TOKEN` are passed th
 
 | Package | Description |
 |---|---|
-| `claude-sandboxed` | Sandboxed Claude Code |
-| `claude-yolo-sandboxed` | Sandboxed Claude Code with `--dangerously-skip-permissions` |
-| `bash-sandboxed` | Sandboxed bash for debugging the sandbox environment |
+| `claude` | Sandboxed Claude Code |
+| `claude-yolo` | Sandboxed Claude Code with `--dangerously-skip-permissions` |
+| `bash` | Sandboxed bash for debugging the sandbox environment |
 
 ## Quick start
 
 Run directly from GitHub:
 
 ```sh
-nix run github:maschwanden/claude-sandboxed#claude-sandboxed
-nix run github:maschwanden/claude-sandboxed#claude-yolo-sandboxed
+nix run github:maschwanden/claude-sandboxed#claude
+nix run github:maschwanden/claude-sandboxed#claude-yolo
 ```
 
 ## With project devShell packages
@@ -89,7 +89,7 @@ For direct integration, this flake exposes `lib.<system>.mkSandboxedClaude`:
         extraPackages = [ pkgs.go pkgs.python3 ];
       };
     in {
-      packages.${system}.claude = claudePkgs.claude-sandboxed;
+      packages.${system}.claude = claudePkgs.claude;
     };
 }
 ```

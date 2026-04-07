@@ -3,7 +3,7 @@
 # Usage:
 #   nix run .#claude          — sandboxed Claude with Go and Python available
 #   nix run .#claude-yolo     — same, with --dangerously-skip-permissions
-#   nix run .#bash-sandboxed  — debug shell to inspect the sandbox
+#   nix run .#bash            — debug shell to inspect the sandbox
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -24,9 +24,9 @@
     in
     {
       packages.${system} = {
-        claude = claudePkgs.claude-sandboxed;
-        claude-yolo = claudePkgs.claude-yolo-sandboxed;
-        bash-sandboxed = claudePkgs.bash-sandboxed;
+        claude = claudePkgs.claude;
+        claude-yolo = claudePkgs.claude-yolo;
+        bash = claudePkgs.bash;
       };
     };
 }
