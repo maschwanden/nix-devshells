@@ -247,6 +247,7 @@
         in
         claudePkgs
         // {
+          default = claudePkgs.claude;
           claude-with-shell = mkWithShellWrapper {
             name = "claude-with-shell";
             attr = "claude";
