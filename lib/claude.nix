@@ -15,6 +15,7 @@
   mkSandboxedClaude = (
     {
       extraPackages ? [ ],
+      enableVoice ? false,
     }:
     let
       state-dirs = [ "$HOME/.claude" ];
@@ -40,6 +41,10 @@
         pkgs.gnugrep
         pkgs.findutils
         pkgs.jq
+      ]
+      ++ pkgs.lib.optionals enableVoice [
+        pkgs.sox
+        pkgs.alsa-utils
       ]
       ++ pkgs.lib.flatten extraPackages;
       claude = sandboxLib.mkSandbox {

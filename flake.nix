@@ -51,6 +51,7 @@
         let
           pkgs = nixpkgsFor system;
           claudePkgs = (mkSandboxedClaudeFor system).mkSandboxedClaude { };
+          claudePkgsWithVoice = (mkSandboxedClaudeFor system).mkSandboxedClaude { enableVoice = true; };
 
           # Nix expression with dependency store paths baked in at eval time.
           # Only the project flake ref and variant are resolved at runtime
@@ -278,6 +279,11 @@
             attr = "bash";
             binName = "bash-sandboxed";
           };
+
+          # Voice-enabled variants
+          claude-with-voice = claudePkgsWithVoice.claude;
+          claude-yolo-with-voice = claudePkgsWithVoice.claude-yolo;
+          bash-with-voice = claudePkgsWithVoice.bash;
         }
       );
     };

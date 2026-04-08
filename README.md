@@ -21,6 +21,22 @@ nix run github:maschwanden/claude-sandboxed#claude
 nix run github:maschwanden/claude-sandboxed#claude-yolo
 ```
 
+## Voice support
+
+By default, voice dependencies (sox, alsa-utils) are not included to keep the closure small. Use the `*-with-voice` variants to enable voice support:
+
+| Package | Description |
+|---|---|
+| `claude-with-voice` | Sandboxed Claude with voice support |
+| `claude-yolo-with-voice` | Same, with `--dangerously-skip-permissions` |
+| `bash-with-voice` | Sandboxed bash with voice packages (for debugging) |
+
+```sh
+nix run github:maschwanden/claude-sandboxed#claude-with-voice
+```
+
+When using `mkSandboxedClaude` directly, pass `enableVoice = true`.
+
 ## With project devShell packages
 
 The `*-with-shell` wrappers run sandboxed Claude with all packages from another flake's `devShells.<system>.default` available inside the sandbox. The project doesn't need to know about Claude at all.
