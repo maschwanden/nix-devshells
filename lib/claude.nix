@@ -15,6 +15,7 @@
   mkSandboxedClaude = (
     {
       extraPackages ? [ ],
+      extraEnv ? { },
       enableVoice ? false,
     }:
     let
@@ -29,7 +30,7 @@
         CLAUDE_CODE_OAUTH_TOKEN = "$CLAUDE_CODE_OAUTH_TOKEN";
         GITHUB_TOKEN = "$GITHUB_TOKEN";
         TERM = "xterm-256color";
-      };
+      } // extraEnv;
       allowed-packages = [
         pkgs.coreutils
         pkgs.ncurses

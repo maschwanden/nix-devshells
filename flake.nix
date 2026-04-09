@@ -63,7 +63,6 @@
               system = builtins.currentSystem;
 
               shell = projectFlake.devShells.''${system}.default;
-              extraPkgs = (shell.buildInputs or [ ]) ++ (shell.nativeBuildInputs or [ ]);
 
               pkgs = import ${nixpkgs} {
                 inherit system;
@@ -77,8 +76,28 @@
                 llm-agents = llmAgentsFlake;
                 sandboxLib = sandboxFlake.lib.''${system};
               }).mkSandboxedClaude;
+
+              # Flatten because buildInputs/nativeBuildInputs may contain nested lists.
+              lib = pkgs.lib;
+              extraPkgs = lib.flatten ((shell.buildInputs or [ ]) ++ (shell.nativeBuildInputs or [ ]));
+              extraOutputs = lib.concatMap (pkg:
+                lib.optional (pkg ? dev) pkg.dev
+                ++ lib.optional (pkg ? lib) pkg.lib
+              ) extraPkgs;
+              extraPkgsAll = extraPkgs ++ extraOutputs;
+
+              # Replicate the env vars that nix develop sets via stdenv setup hooks.
+              devEnv = {
+                PKG_CONFIG_PATH = lib.concatStringsSep ":" (lib.filter (s: s != "") [
+                  (lib.makeSearchPath "lib/pkgconfig" extraPkgsAll)
+                  (lib.makeSearchPath "share/pkgconfig" extraPkgsAll)
+                ]);
+                LIBRARY_PATH = lib.makeLibraryPath extraPkgsAll;
+                LD_LIBRARY_PATH = lib.makeLibraryPath extraPkgsAll;
+                C_INCLUDE_PATH = lib.makeSearchPath "include" extraPkgsAll;
+              };
             in
-              builtins.getAttr attr (mkClaude { extraPackages = extraPkgs; })
+              builtins.getAttr attr (mkClaude { extraPackages = extraPkgsAll; extraEnv = devEnv; })
           '';
 
           # Nix expression that resolves nixpkgs attribute names to packages.
@@ -103,8 +122,25 @@
                 llm-agents = llmAgentsFlake;
                 sandboxLib = sandboxFlake.lib.''${system};
               }).mkSandboxedClaude;
+
+              lib = pkgs.lib;
+              extraOutputs = lib.concatMap (pkg:
+                lib.optional (pkg ? dev) pkg.dev
+                ++ lib.optional (pkg ? lib) pkg.lib
+              ) extraPkgs;
+              extraPkgsAll = extraPkgs ++ extraOutputs;
+
+              devEnv = {
+                PKG_CONFIG_PATH = lib.concatStringsSep ":" (lib.filter (s: s != "") [
+                  (lib.makeSearchPath "lib/pkgconfig" extraPkgsAll)
+                  (lib.makeSearchPath "share/pkgconfig" extraPkgsAll)
+                ]);
+                LIBRARY_PATH = lib.makeLibraryPath extraPkgsAll;
+                LD_LIBRARY_PATH = lib.makeLibraryPath extraPkgsAll;
+                C_INCLUDE_PATH = lib.makeSearchPath "include" extraPkgsAll;
+              };
             in
-              builtins.getAttr attr (mkClaude { extraPackages = extraPkgs; })
+              builtins.getAttr attr (mkClaude { extraPackages = extraPkgsAll; extraEnv = devEnv; })
           '';
 
           # Helper to generate a *-with-shell wrapper for a given variant.
